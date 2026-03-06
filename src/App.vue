@@ -11,11 +11,15 @@ import YouBikeCard from './components/YouBikeCard.vue'
 const FALLBACK_LAT = 25.0478
 const FALLBACK_LNG = 121.5170
 
+const COOLDOWN_SEC = 15
+
 const loading = ref(true)
 const error = ref(null)
 const dashboard = ref(null)
 const updatedAt = ref(null)
 const refreshing = ref(false)
+const cooldown = ref(0)
+let cooldownTimer = null
 
 function getLocation() {
   return new Promise((resolve) => {
@@ -46,8 +50,19 @@ async function loadData() {
   }
 }
 
+function startCooldown() {
+  cooldown.value = COOLDOWN_SEC
+  clearInterval(cooldownTimer)
+  cooldownTimer = setInterval(() => {
+    cooldown.value--
+    if (cooldown.value <= 0) clearInterval(cooldownTimer)
+  }, 1000)
+}
+
 async function refresh() {
+  if (cooldown.value > 0 || refreshing.value) return
   refreshing.value = true
+  startCooldown()
   await loadData()
 }
 
@@ -59,7 +74,9 @@ onMounted(loadData)
     <h1>TARO<span class="sub">台北生活即時資訊</span></h1>
     <div class="header-right">
       <span v-if="updatedAt">{{ updatedAt }} 更新</span>
-      <el-button size="small" :loading="refreshing" @click="refresh">重新整理</el-button>
+      <el-button size="small" :loading="refreshing" :disabled="cooldown > 0" @click="refresh">
+        {{ cooldown > 0 ? cooldown + 's' : '重新整理' }}
+      </el-button>
     </div>
   </div>
 
